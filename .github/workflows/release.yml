@@ -1,0 +1,50 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build macOS app and publish release
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build app bundle
+        run: ./Scripts/build-app.sh
+
+      - name: Package app bundle
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "dist/TaskSpool.app" "dist/TaskSpool.zip"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "dist/TaskSpool.app/Contents/Info.plist")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="v${VERSION}-${SHORT_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+          fi
+
+          gh release create "$TAG" "dist/TaskSpool.zip" \
+            --title "TaskSpool ${TAG}" \
+            --notes "Automated macOS build for commit ${GITHUB_SHA}."
