@@ -25,9 +25,14 @@ jobs:
       - name: Build app bundle
         run: ./Scripts/build-app.sh
 
-      - name: Package app bundle
+      - name: Package DMG
         run: |
-          ditto -c -k --sequesterRsrc --keepParent "dist/TaskSpool.app" "dist/TaskSpool.zip"
+          hdiutil create \
+            -volname "TaskSpool" \
+            -srcfolder "dist/TaskSpool.app" \
+            -ov \
+            -format UDZO \
+            "dist/TaskSpool.dmg"
 
       - name: Publish GitHub release
         env:
@@ -45,6 +50,6 @@ jobs:
             git push origin "$TAG"
           fi
 
-          gh release create "$TAG" "dist/TaskSpool.zip" \
+          gh release create "$TAG" "dist/TaskSpool.dmg" \
             --title "TaskSpool ${TAG}" \
             --notes "Automated macOS build for commit ${GITHUB_SHA}."
